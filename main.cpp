@@ -49,54 +49,500 @@ bool chooseDP_L4 = true;
 
 //ANMOL's PARTT 
 
-// ──────────────────────────────────────────────
-//  KNAPSACK
-// ──────────────────────────────────────────────
-static const int KN = 5, KW = 8;
-static int kwt[KN] = {2, 3, 4, 5, 1};
-static int kval[KN] = {3, 4, 5, 6, 2};
-static const char *kname[KN] = {"Flashbang", "EMP", "MediKit", "Grapple", "Lockpick"};
-static int dpTable[KN + 1][KW + 1];
-static int dpAniI = 1, dpAniW = 0;
-static bool dpDone = false;
+//VASANT's Part
 
-static void initKS()
+// ──────────────────────────────────────────────
+//  DRAW HELPERS
+// ──────────────────────────────────────────────
+static void DrawBG(Color a, Color b)
 {
-    memset(dpTable, 0, sizeof(dpTable));
-    dpAniI = 1;
-    dpAniW = 0;
-    dpDone = false;
-}
-static void stepDP()
-{
-    if (dpDone)
-        return;
-    int i = dpAniI, w = dpAniW;
-    dpTable[i][w] = (kwt[i - 1] <= w) ? max(dpTable[i - 1][w], kval[i - 1] + dpTable[i - 1][w - kwt[i - 1]]) : dpTable[i - 1][w];
-    if (++dpAniW > KW)
+    for (int y = 0; y < SH; y++)
     {
-        dpAniW = 0;
-        if (++dpAniI > KN)
-            dpDone = true;
+        float t = (float)y / SH;
+        DrawLine(0, y, SW, y, {(uint8_t)(a.r + (b.r - a.r) * t), (uint8_t)(a.g + (b.g - a.g) * t), (uint8_t)(a.b + (b.b - a.b) * t), 255});
     }
 }
-static int greedyVal()
+static void DC(const char *s, int y, int sz, Color c) { DrawText(s, (SW - MeasureText(s, sz)) / 2, y, sz, c); }
+static void DrawHUD()
 {
-    vector<pair<float, int>> r;
-    for (int i = 0; i < KN; i++)
-        r.push_back({(float)kval[i] / kwt[i], i});
-    sort(r.rbegin(), r.rend());
-    int rem = KW, v = 0;
-    for (auto [ratio, i] : r)
-        if (kwt[i] <= rem)
+    DrawRectangle(0, 0, SW, 52, {8, 8, 18, 240});
+    DrawLine(0, 52, SW, 52, {60, 60, 100, 255});
+    DrawText("THE HEIST & ESCAPE LOOP", 18, 14, 22, RED);
+    char buf[64];
+    sprintf(buf, "Score: %04d", score);
+    DrawText(buf, SW - MeasureText(buf, 22) - 18, 14, 22, GOLD);
+}
+static void Panel(int x, int y, int w, int h, Color bg, Color border)
+{
+    DrawRectangleRounded({(float)x, (float)y, (float)w, (float)h}, 0.07f, 6, bg);
+    DrawRectangleRoundedLines({(float)x, (float)y, (float)w, (float)h}, 0.07f, 6, border);
+}
+static void DrawMaze()
+{
+    int T = 2;
+    Color wc = {200, 200, 210, 255};
+    for (int row = 0; row < ROWS; row++)
+        for (int col = 0; col < COLS; col++)
         {
-            rem -= kwt[i];
-            v += kval[i];
+            int x = MX + col * CELL, y = MY + row * CELL, w = mazeW[row][col];
+            if (!(w & 1))
+                DrawRectangle(x, y, CELL, T, wc);
+            if (!(w & 2))
+                DrawRectangle(x, y + CELL - T, CELL, T, wc);
+            if (!(w & 4))
+                DrawRectangle(x + CELL - T, y, T, CELL, wc);
+            if (!(w & 8))
+                DrawRectangle(x, y, T, CELL, wc);
         }
-    return v;
+    int ex = MX + (COLS - 1) * CELL, ey = MY + (ROWS - 1) * CELL;
+    DrawRectangle(ex + 3, ey + 3, CELL - 6, CELL - 6, {0, 220, 80, 180});
+    DrawText("EXIT", ex + 5, ey + CELL / 2 - 7, 12, {0, 0, 0, 200});
 }
 
-//VASANT's PART
+// Draw player — texture FITTED to cell, never overflow
+static void DrawPlayer(int gx, int gy)
+{
+    int cx = MX + gx * CELL, cy = MY + gy * CELL, sz = CELL - 4;
+    if (userTex.id)
+    {
+        DrawTexturePro(userTex, {0, 0, (float)userTex.width, (float)userTex.height},
+                       {(float)(cx + 2), (float)(cy + 2), (float)sz, (float)sz}, {0, 0}, 0, WHITE);
+    }
+    else
+    {
+        DrawCircle(cx + CELL / 2, cy + CELL / 2, sz / 2, BLUE);
+    }
+}
+
+// Draw guard — texture FITTED to cell, never overflow
+static void DrawGuard(int gx, int gy)
+{
+    int cx = MX + gx * CELL, cy = MY + gy * CELL, sz = CELL - 4;
+    if (guardTex.id)
+    {
+        DrawTexturePro(guardTex, {0, 0, (float)guardTex.width, (float)guardTex.height},
+                       {(float)(cx + 2), (float)(cy + 2), (float)sz, (float)sz}, {0, 0}, 0, WHITE);
+    }
+    else
+    {
+        DrawCircle(cx + CELL / 2, cy + CELL / 2, sz / 2, {220, 40, 40, 255});
+    }
+    DrawRectangleLines(cx + 1, cy + 1, CELL - 2, CELL - 2, {255, 50, 50, 200});
+}
+
+// ──────────────────────────────────────────────
+//  EXPLANATION SCREENS
+//  These are the "WHY" cards shown after every choice
+// ──────────────────────────────────────────────
+static void DrawL1Explain()
+{
+    DrawBG({5, 5, 20, 255}, {20, 5, 40, 255});
+    DrawHUD();
+    Panel(28, 58, SW - 56, SH - 76, {14, 14, 35, 235}, {60, 60, 120, 255});
+    DC("LEVEL 1 DEBRIEF:  Why Did Your Choice Score That?", 78, 24, GOLD);
+    DrawLine(28, 112, SW - 28, 112, {60, 60, 100, 255});
+
+    if (chooseDP_L1)
+    {
+        Panel(330, 122, 440, 58, {20, 80, 20, 240}, GREEN);
+        DC("You chose DYNAMIC PROGRAMMING  =>  +200 pts", 142, 18, GREEN);
+    }
+    else
+    {
+        Panel(280, 122, 540, 58, {80, 30, 10, 240}, {255, 140, 0, 255});
+        DC("You chose GREEDY ALGORITHM  =>  +80 pts  (suboptimal!)", 142, 18, ORANGE);
+    }
+
+    // Left: Greedy
+    Panel(36, 196, 492, 470, {30, 15, 10, 220}, {255, 140, 0, 255});
+    DrawText("GREEDY APPROACH", 52, 208, 18, {255, 160, 40, 255});
+    DrawLine(52, 230, 520, 230, {100, 60, 20, 255});
+    const char *gL[] = {
+        "Idea: sort items by value/weight",
+        "ratio, greedily pick the best.",
+        "",
+        "Time:  O(n log n)   Space: O(n)",
+        "",
+        "WHY ONLY 80 POINTS?",
+        "Greedy is NOT always optimal",
+        "for 0/1 Knapsack.",
+        "The 0/1 means: take whole item",
+        "or skip it. No splitting allowed.",
+        "Example (our items, W=8):",
+        "  Greedy picks Lockpick(ratio 2)",
+        "  then Flashbang(ratio 1.5):",
+        "  val=2+3=5 but misses better",
+        "  combo: Flashbang+EMP=3+4=7!",
+        "Greedy is optimal ONLY for the",
+        "Fractional Knapsack variant.",
+    };
+    for (int i = 0; i < 17; i++)
+        DrawText(gL[i], 54, 244 + i * 22, 14, (i == 5 || i == 9 || i == 19) ? (Color){255, 120, 60, 255} : WHITE);
+
+    // Right: DP
+    Panel(556, 196, SW - 594, 470, {10, 30, 10, 220}, GREEN);
+    DrawText("DYNAMIC PROGRAMMING (0/1 Knapsack)", 572, 208, 17, {80, 255, 120, 255});
+    DrawLine(572, 230, SW - 44, 230, {20, 80, 20, 255});
+    const char *dL[] = {
+        "Idea: build table dp[i][w]",
+        "dp[i][w] = max value using first",
+        "i items with capacity w.",
+        "",
+        "Time:  O(n*W)   Space: O(n*W)",
+        "",
+        "WHY 200 POINTS?",
+        "DP explores ALL subsets via",
+        "the table — ALWAYS optimal!",
+        "Answer: dp[n][W]",
+        "For our items: val=7 (optimal)",
+    };
+    for (int i = 0; i < 11; i++)
+        DrawText(dL[i], 578, 244 + i * 22, 14, (i == 6 || i == 18) ? (Color){80, 255, 120, 255} : WHITE);
+
+    DC("[SPACE]  Continue to Level 2:  BFS Maze", SH - 34, 19, {0, 210, 80, 255});
+}
+
+static void DrawL3Explain()
+{
+    DrawBG({15, 5, 5, 255}, {30, 5, 5, 255});
+    DrawHUD();
+    Panel(28, 58, SW - 56, SH - 76, {20, 10, 10, 235}, {120, 40, 40, 255});
+    DC("LEVEL 3 DEBRIEF: Why Did Your Sort Choice Matter?", 78, 24, GOLD);
+    DrawLine(28, 112, SW - 28, 112, {100, 40, 40, 255});
+
+    if (chooseQuick_L3)
+    {
+        Panel(280, 122, 540, 58, {20, 70, 20, 240}, GREEN);
+        DC("You chose QUICK SORT  =>  Slower guard, easier escape!", 142, 18, GREEN);
+    }
+    else
+    {
+        Panel(280, 122, 540, 58, {80, 20, 10, 240}, ORANGE);
+        DC("You chose BUBBLE SORT  =>  Faster guard, harder escape!", 142, 18, ORANGE);
+    }
+
+    Panel(36, 196, 492, 462, {30, 10, 10, 220}, {255, 100, 60, 255});
+    DrawText("BUBBLE SORT  O(N^2)", 52, 208, 18, ORANGE);
+    DrawLine(52, 230, 520, 230, {100, 40, 20, 255});
+    const char *bL[] = {
+        "Compare adjacent pairs,",
+        "swap if out of order. Repeat N times.",
+        "",
+        "Time:  O(N^2)   Space: O(1)",
+        "",
+        "For N=10 items:",
+        "  Up to 45 comparisons+swaps.",
+        "  Every swap = noise spike.",
+        "",
+        "WHY GUARD IS FASTER?",
+        "More operations = higher noise.",
+        "Guard move delay: 0.28s",
+        "Very hard to escape!",
+        "",
+        "When is it OK to use?",
+        "  Nearly sorted small arrays.",
+        "  Teaching & visualization.",
+        "  When N < 10 and simplicity",
+        "  matters more than speed.",
+    };
+    for (int i = 0; i < 19; i++)
+        DrawText(bL[i], 54, 244 + i * 22, 14, (i == 9 || i == 3) ? (Color){255, 120, 60, 255} : WHITE);
+
+    Panel(556, 196, SW - 594, 462, {10, 25, 10, 220}, GREEN);
+    DrawText("QUICK SORT  O(N log N)", 572, 208, 18, {80, 255, 100, 255});
+    DrawLine(572, 230, SW - 44, 230, {20, 80, 20, 255});
+    const char *qL[] = {
+        "Choose pivot, partition array",
+        "into < pivot and > pivot halves,",
+        "recurse on each half.",
+        "",
+        "Time:  O(N log N) avg  O(N^2) worst",
+        "Space: O(log N) stack",
+        "",
+        "For N=10 items:",
+        "  ~33 comparisons on average.",
+        "  Much quieter than Bubble!",
+        "",
+        "WHY GUARD IS SLOWER?",
+        "Fewer ops = less noise generated.",
+        "Guard move delay: 0.55s",
+        "Easier to reach the exit!",
+        "",
+        "Used in: std::sort (most libs),",
+        "C++ std::sort (introsort variant),",
+        "real databases, OS schedulers.",
+    };
+    for (int i = 0; i < 19; i++)
+        DrawText(qL[i], 578, 244 + i * 22, 14, (i == 11 || i == 4) ? (Color){80, 255, 100, 255} : WHITE);
+
+    DC("[SPACE]  Continue to Level 4  TSP Laser Grid", SH - 34, 19, {0, 210, 80, 255});
+}
+
+static void DrawL4Explain()
+{
+    DrawBG({5, 5, 25, 255}, {5, 15, 45, 255});
+    DrawHUD();
+    Panel(28, 58, SW - 56, SH - 76, {12, 12, 35, 235}, {60, 80, 160, 255});
+    DC("LEVEL 4 DEBRIEF: Why Does The TSP Algorithm Matter?", 78, 24, GOLD);
+    DrawLine(28, 112, SW - 28, 112, {60, 80, 130, 255});
+
+    char badge[120];
+    sprintf(badge, "You chose: %s   Min Tour Cost: %d   %s",
+            chooseDP_L4 ? "Held-Karp DP" : "Brute Force", tspResult, chooseDP_L4 ? "+200 pts" : "+80 pts");
+    if (chooseDP_L4)
+    {
+        Panel(200, 122, SW - 400, 58, {20, 70, 20, 240}, GREEN);
+        DC(badge, 142, 17, GREEN);
+    }
+    else
+    {
+        Panel(200, 122, SW - 400, 58, {70, 30, 10, 240}, ORANGE);
+        DC(badge, 142, 17, ORANGE);
+    }
+
+    Panel(36, 196, 490, 462, {20, 15, 10, 220}, ORANGE);
+    DrawText("BRUTE FORCE  O(N!)", 52, 208, 18, ORANGE);
+    DrawLine(52, 230, 518, 230, {80, 50, 10, 255});
+    const char *bfL[] = {
+        "Try every possible order of cities.",
+        "Track the minimum total cost.",
+        "",
+        "Time:  O(N!)  Space: O(N)",
+        "",
+        "How fast does it EXPLODE?",
+        "  N=5 :        24 perms",
+        "  N=10:   362,880 perms",
+        "  N=15:   87 billion perms",
+        "  N=20:   10^18 — impossible!",
+        "  N=25:   10^25 perms",
+        "",
+        "WHY ONLY 80 POINTS?",
+        "Works for tiny N only.",
+        "For any real city map (N>20)",
+        "brute force would take longer",
+        "than the age of the universe!",
+        "",
+        "Use case: small N test oracle,",
+        "verifying DP correctness only.",
+    };
+    for (int i = 0; i < 20; i++)
+        DrawText(bfL[i], 54, 244 + i * 21, 14, (i == 5 || i == 12) ? (Color){255, 130, 50, 255} : WHITE);
+
+    Panel(554, 196, SW - 590, 462, {10, 25, 15, 220}, GREEN);
+    DrawText("HELD-KARP DP  O(2^N * N^2)", 570, 208, 17, {80, 255, 120, 255});
+    DrawLine(570, 230, SW - 44, 230, {20, 80, 30, 255});
+    const char *dpL[] = {
+        "State: dp[mask][pos]",
+        "mask = bitmask of visited cities",
+        "pos  = current city index",
+        "",
+        "Time:  O(2^N * N^2)  Space: O(2^N*N)",
+        "",
+        "How much better than O(N!)?",
+        "  N=5 :       80 states",
+        "  N=10:    10,240 states",
+        "  N=15:   491,520 states",
+        "  N=20:  ~20 million states",
+        "  N=25: ~838 million states",
+        "",
+        "WHY 200 POINTS?",
+        "Feasible up to N~20 on modern",
+        "hardware. Exact optimal answer.",
+        "",
+        "TSP is NP-Hard: no polynomial",
+        "solution is known.",
+        "Held-Karp is the best exact algo!",
+    };
+    for (int i = 0; i < 20; i++)
+        DrawText(dpL[i], 572, 244 + i * 21, 14, (i == 6 || i == 13 || i == 17) ? (Color){80, 255, 120, 255} : WHITE);
+
+    DC("[SPACE]  View Mission Accomplished", SH - 34, 19, {0, 210, 80, 255});
+}
+
+// ──────────────────────────────────────────────
+//  INTRO CARDS (before each level)
+// ──────────────────────────────────────────────
+static void DrawL2Intro()
+{
+    DrawBG({4, 12, 4, 255}, {8, 24, 8, 255});
+    DrawHUD();
+    Panel(60, 65, SW - 120, SH - 110, {10, 20, 10, 230}, {40, 140, 40, 255});
+    DC("LEVEL 2:  THE ENCRYPTED MAZE", 90, 28, GOLD);
+    DrawLine(60, 130, SW - 60, 130, {40, 100, 40, 255});
+
+    Panel(78, 148, 452, 472, {12, 25, 12, 220}, {60, 180, 60, 255});
+    DrawText("BFS:  Breadth-First Search", 96, 162, 20, {80, 255, 120, 255});
+    const char *bfs[] = {
+        "Maze generated by Randomized DFS.",
+        "Every path guaranteed solvable!",
+        "",
+        "BFS explores cells LAYER by LAYER",
+        "from the start. It guarantees the",
+        "SHORTEST path in any unweighted",
+        "graph.",
+        "",
+        "Time: O(V+E)   Space: O(V)",
+        "V=150 cells  E=open passages",
+        "",
+        "Press [H] to see BFS path live.",
+        "",
+        "In Level 3, the guard also uses",
+        "BFS to chase you every step —",
+        "that's how real game AI works!",
+        "(Pac-Man ghosts, RPG enemies)",
+    };
+    for (int i = 0; i < 17; i++)
+        DrawText(bfs[i], 96, 196 + i * 24, 16, (i == 8 || i == 3) ? (Color){80, 255, 120, 255} : WHITE);
+
+    Panel(568, 148, SW - 636, 472, {12, 12, 30, 220}, {80, 120, 220, 255});
+    DrawText("HOW TO NAVIGATE", 586, 162, 19, SKYBLUE);
+    const char *ctrl[] = {
+        "Arrow Keys:  Move player",
+        "H :     Toggle BFS hint",
+        "",
+        "The BFS hint highlights the",
+        "shortest path to exit in CYAN.",
+        "",
+        "You earn +2 pts per step.",
+        "+100 pts for reaching exit.",
+        "",
+        "The maze is DIFFERENT every",
+        "game run (random DFS seed).",
+        "",
+        "Tip: BFS always finds the",
+        "shortest route. Use the hint",
+        "to understand how BFS explores",
+        "systematically level by level.",
+        "",
+        "Reach the GREEN exit cell!",
+    };
+    for (int i = 0; i < 18; i++)
+        DrawText(ctrl[i], 586, 196 + i * 24, 15, WHITE);
+
+    DC("[SPACE] Enter the Maze!", SH - 44, 22, {0, 220, 80, 255});
+}
+
+static void DrawL3Intro()
+{
+    DrawBG({18, 5, 5, 255}, {35, 8, 8, 255});
+    DrawHUD();
+    Panel(60, 65, SW - 120, SH - 110, {22, 10, 10, 230}, {140, 40, 40, 255});
+    DC("LEVEL 3:  STEALTH MODE", 90, 28, GOLD);
+    DrawLine(60, 130, SW - 60, 130, {100, 30, 30, 255});
+
+    Panel(78, 148, 452, 472, {28, 10, 10, 220}, {200, 60, 60, 255});
+    DrawText("THE SORTING CHOICE", 96, 162, 19, {255, 120, 80, 255});
+    const char *sl[] = {
+        "Same maze but a guard chases",
+        "you using BFS every step.",
+        "Every move, your noise array is",
+        "sorted. The algorithm you pick",
+        "directly controls guard speed:",
+        "BUBBLE SORT O(N^2):",
+        "  Many swaps = loud noise",
+        "  Guard moves every 0.28s FAST",
+        "  Very hard to escape!",
+        "QUICK SORT O(N log N):",
+        "  Few comparisons = quiet",
+        "  Guard moves every 0.55s SLOW",
+        "  Much easier to escape!",
+        "Watch the noise bar + bar chart",
+        "on the right panel while playing.",
+        "If caught: [R] retry, [M] menu.",
+    };
+    for (int i = 0; i < 16; i++)
+        DrawText(sl[i], 96, 196 + i * 23, 15, (i == 7 || i == 12) ? (Color){255, 150, 80, 255} : WHITE);
+
+    Panel(568, 148, SW - 636, 472, {12, 12, 30, 220}, {80, 80, 200, 255});
+    DrawText("SELECT YOUR SORT NOW", 586, 162, 18, SKYBLUE);
+    const char *sc[] = {
+        "Click a button below to choose",
+        "your sort algorithm before",
+        "starting Level 3.",
+        "",
+        "Your choice is shown with a",
+        "checkmark (SELECTED) below.",
+        "",
+        "Reach the EXIT cell to escape.",
+        "+150 pts + time bonus on escape.",
+        "The sort choice teaches you:",
+        "Algorithm complexity is not just",
+        "theory — it directly affects",
+        "real performance outcomes!",
+        "A faster algorithm (QuickSort)",
+        "generates less work = less noise",
+        "= guard reacts slower to you.",
+        "This is WHY we care about O(N)",
+        "vs O(N^2) in real engineering.",
+    };
+    for (int i = 0; i < 18; i++)
+        DrawText(sc[i], 586, 196 + i * 23, 14, WHITE);
+
+    DC("[SPACE] Start Stealth Mode", SH - 44, 21, {220, 80, 0, 255});
+}
+
+static void DrawL4Intro()
+{
+    DrawBG({5, 5, 22, 255}, {5, 12, 40, 255});
+    DrawHUD();
+    Panel(60, 65, SW - 120, SH - 110, {10, 10, 30, 230}, {60, 60, 180, 255});
+    DC("LEVEL 4 TSP LASER GRID", 90, 28, GOLD);
+    DrawLine(60, 130, SW - 60, 130, {60, 60, 140, 255});
+
+    Panel(78, 148, 452, 510, {12, 12, 30, 220}, {80, 80, 200, 255});
+    DrawText("TRAVELLING SALESMAN PROBLEM", 96, 162, 17, SKYBLUE);
+    const char *tl[] = {
+        "Visit ALL 5 laser nodes exactly",
+        "once and return to BASE.",
+        "Minimize the total travel cost.",
+        "",
+        "This is NP-Hard — no known",
+        "polynomial time solution!",
+        "",
+        "You choose HOW to solve it:",
+        "",
+        "BRUTE FORCE:",
+        "  Try all (N-1)! orderings.",
+        "  N=5 => 24 permutations OK",
+        "  N=20 => 10^18 IMPOSSIBLE",
+        "HELD-KARP DP:",
+        "  Bitmask DP on subsets.",
+        "  N=5 => 80 states  FAST",
+        "  N=20 => 20M  still feasible",
+        "See the full explanation AFTER",
+        "you click your choice below!",
+    };
+    for (int i = 0; i < 19; i++)
+        DrawText(tl[i], 96, 196 + i * 23, 14, (i == 4 || i == 9 || i == 14) ? (Color){100, 180, 255, 255} : WHITE);
+
+    Panel(568, 148, SW - 636, 510, {10, 20, 10, 220}, {60, 180, 60, 255});
+    DrawText("COMPLEXITY PREVIEW", 586, 162, 18, {80, 255, 120, 255});
+    const char *tc[] = {
+        "N cities — comparisons needed:",
+        "",
+        "N  | Brute Force O(N!)| Held-Karp",
+        "5  |           24    |       80",
+        "10 |      362,880    |   10,240",
+        "15 | 87 billion     |  491,520",
+        "20 | 10^18 KABOOM   | 20 million",
+        "",
+        "Held-Karp is EXPONENTIALLY",
+        "better than brute force!",
+        "Distance matrix (5 nodes):",
+        "     B   A   B   C   D",
+        "[0  10  15  20  25]",
+        "[10   0  35  25  17]",
+        "[15  35   0  30  28]",
+        "[20  25  30   0  22]",
+        "[25  17  28  22   0]",
+        "DP ",
+        "Brute Force",
+    };
+    for (int i = 0; i < 19; i++)
+        DrawText(tc[i], 586, 196 + i * 23, 13, (i == 8 || i == 9 || i == 19 || i == 20) ? (Color){80, 255, 120, 255} : WHITE);
+
+    DC("[SPACE]  Approach the Grid", SH - 44, 21, {80, 160, 255, 255});
+}
 
 // ──────────────────────────────────────────────
 //  MAIN
