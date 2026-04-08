@@ -48,7 +48,139 @@ bool chooseQuick_L3 = true;
 bool chooseDP_L4 = true;
 
 //ANMOL's PARTT 
+// ──────────────────────────────────────────────
+//  MAZE  (bitmask: bit0=N bit1=S bit2=E bit3=W)
+// ──────────────────────────────────────────────
+static int mazeW[ROWS][COLS];
+static bool mazeVis[ROWS][COLS];
 
+static void carveMaze(int x, int y)
+{
+    mazeVis[y][x] = true;
+    int dirs[4] = {0, 1, 2, 3};
+    for (int i = 3; i > 0; i--)
+        swap(dirs[i], dirs[GetRandomValue(0, i)]);
+    int dx[4] = {0, 0, 1, -1};
+    int dy[4] = {-1, 1, 0, 0};
+    int myBit[4] = {1, 2, 4, 8};
+    int nbBit[4] = {2, 1, 8, 4};
+    for (int d : dirs)
+    {
+        int nx = x + dx[d], ny = y + dy[d];
+        if (nx >= 0 && ny >= 0 && nx < COLS && ny < ROWS && !mazeVis[ny][nx])
+        {
+            mazeW[y][x] |= myBit[d];
+            mazeW[ny][nx] |= nbBit[d];
+            carveMaze(nx, ny);
+        }
+    }
+}
+static void initMaze()
+{
+    memset(mazeW, 0, sizeof(mazeW));
+    memset(mazeVis, 0, sizeof(mazeVis));
+    carveMaze(0, 0);
+}
+
+// ──────────────────────────────────────────────
+//  BFS (wall-aware)
+// ──────────────────────────────────────────────
+static vector<pair<int, int>> mazeBFS(int sx, int sy, int ex, int ey)
+{
+    static const int dx[4] = {0, 0, 1, -1};
+    static const int dy[4] = {-1, 1, 0, 0};
+    static const int bit[4] = {1, 2, 4, 8};
+    bool vis[ROWS][COLS] = {};
+    map<pair<int, int>, pair<int, int>> par;
+    queue<pair<int, int>> q;
+    q.push({sx, sy});
+    vis[sy][sx] = true;
+    while (!q.empty())
+    {
+        auto [cx, cy] = q.front();
+        q.pop();
+        if (cx == ex && cy == ey)
+            break;
+        for (int d = 0; d < 4; d++)
+        {
+            if (!(mazeW[cy][cx] & bit[d]))
+                continue;
+            int nx = cx + dx[d], ny = cy + dy[d];
+            if (nx >= 0 && ny >= 0 && nx < COLS && ny < ROWS && !vis[ny][nx])
+            {
+                vis[ny][nx] = true;
+                par[{nx, ny}] = {cx, cy};
+                q.push({nx, ny});
+            }
+        }
+    }
+    vector<pair<int, int>> path;
+    pair<int, int> cur = {ex, ey};
+    while (cur != make_pair(sx, sy))
+    {
+        if (!par.count(cur))
+            return {};
+        path.push_back(cur);
+        cur = par[cur];
+    }
+    reverse(path.begin(), path.end());
+    return path;
+}
+
+// ──────────────────────────────────────────────
+//  PLAYER / GUARD
+// ──────────────────────────────────────────────
+static Vector2 pPos = {0, 0};
+static Vector2 gPos = {COLS - 2, 0};
+static float guardTimer = 0.f;
+static float stealthTime = 0.f;
+static int noiseLevel = 0;
+static vector<int> noiseArr = {55, 12, 78, 34, 90, 23, 67, 45, 11, 88};
+static int bbI = 0, bbJ = 0;
+static bool bbDone = false;
+
+static void bubbleStep(vector<int> &a)
+{
+    if (bbDone)
+        return;
+    if (bbI >= (int)a.size())
+    {
+        bbDone = true;
+        return;
+    }
+    if (bbJ < (int)a.size() - bbI - 1)
+    {
+        if (a[bbJ] > a[bbJ + 1])
+            swap(a[bbJ], a[bbJ + 1]);
+        bbJ++;
+    }
+    else
+    {
+        bbI++;
+        bbJ = 0;
+    }
+}
+static int qpart(vector<int> &a, int l, int r)
+{
+    int p = a[r], i = l - 1;
+    for (int j = l; j < r; j++)
+        if (a[j] < p)
+        {
+            i++;
+            swap(a[i], a[j]);
+        }
+    swap(a[i + 1], a[r]);
+    return i + 1;
+}
+static void qsort2(vector<int> &a, int l, int r)
+{
+    if (l < r)
+    {
+        int pi = qpart(a, l, r);
+        qsort2(a, l, pi - 1);
+        qsort2(a, pi + 1, r);
+    }
+}
 //VASANT's Part
 // ──────────────────────────────────────────────
 //  KNAPSACK
