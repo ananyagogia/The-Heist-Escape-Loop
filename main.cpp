@@ -47,10 +47,8 @@ bool chooseDP_L1 = true;
 bool chooseQuick_L3 = true;
 bool chooseDP_L4 = true;
 
-//ANMOL's PARTT 
-// ──────────────────────────────────────────────
 //  MAZE  (bitmask: bit0=N bit1=S bit2=E bit3=W)
-// ──────────────────────────────────────────────
+
 static int mazeW[ROWS][COLS];
 static bool mazeVis[ROWS][COLS];
 
@@ -82,9 +80,9 @@ static void initMaze()
     carveMaze(0, 0);
 }
 
-// ──────────────────────────────────────────────
+
 //  BFS (wall-aware)
-// ──────────────────────────────────────────────
+
 static vector<pair<int, int>> mazeBFS(int sx, int sy, int ex, int ey)
 {
     static const int dx[4] = {0, 0, 1, -1};
@@ -127,9 +125,9 @@ static vector<pair<int, int>> mazeBFS(int sx, int sy, int ex, int ey)
     return path;
 }
 
-// ──────────────────────────────────────────────
+
 //  PLAYER / GUARD
-// ──────────────────────────────────────────────
+
 static Vector2 pPos = {0, 0};
 static Vector2 gPos = {COLS - 2, 0};
 static float guardTimer = 0.f;
@@ -181,10 +179,9 @@ static void qsort2(vector<int> &a, int l, int r)
         qsort2(a, pi + 1, r);
     }
 }
-//VASANT's Part
-// ──────────────────────────────────────────────
+
 //  KNAPSACK
-// ──────────────────────────────────────────────
+
 static const int KN = 5, KW = 8;
 static int kwt[KN] = {2, 3, 4, 5, 1};
 static int kval[KN] = {3, 4, 5, 6, 2};
@@ -228,10 +225,9 @@ static int greedyVal()
         }
     return v;
 }
-// added my part
-// ──────────────────────────────────────────────
+
 //  TSP
-// ──────────────────────────────────────────────
+
 static const int TN = 5;
 static int dist[TN][TN] = {{0, 10, 15, 20, 25}, {10, 0, 35, 25, 17}, {15, 35, 0, 30, 28}, {20, 25, 30, 0, 22}, {25, 17, 28, 22, 0}};
 static int tspMem[1 << TN][TN];
@@ -304,9 +300,9 @@ static void solveTSP()
         score += 80;
     }
 }
-// ──────────────────────────────────────────────
+
 //  DRAW HELPERS
-// ──────────────────────────────────────────────
+
 static void DrawBG(Color a, Color b)
 {
     for (int y = 0; y < SH; y++)
