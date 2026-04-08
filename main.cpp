@@ -994,8 +994,180 @@ int main()
             DrawText("[H] BFS Hint", hx + 10, MY + 100, 14, YELLOW);
             DrawText("Reach GREEN exit", hx + 10, MY + 128, 13, GREEN);
             DrawText("+2 pts per step", hx + 10, MY + 148, 13, GREEN);
+            if (showHint)
+            {
+                char hb[32];
+                sprintf(hb, "Path: %d steps", (int)hintPath.size());
+                DrawText(hb, hx + 10, MY + 175, 13, SKYBLUE);
+            }
+            DrawText("BFS: O(V+E)", hx + 10, MY + 240, 13, {100, 200, 255, 255});
+            DrawText("Shortest path", hx + 10, MY + 258, 13, {100, 200, 255, 255});
+            DrawText("in any grid!", hx + 10, MY + 276, 13, {100, 200, 255, 255});
+        }
+        else if (gState == S_L3_INTRO)
+        {
+            DrawL3Intro();
+            bool hB = CheckCollisionPointRec(mouse, {200.f, SH - 90, 220, 52});
+            bool hQ = CheckCollisionPointRec(mouse, {SW - 420.f, SH - 90, 220, 52});
+            Color cB = (!chooseQuick_L3) ? (Color){255, 140, 60, 255} : hB ? (Color){200, 90, 40, 255}
+                                                                           : (Color){140, 60, 20, 255};
+            Color cQ = (chooseQuick_L3) ? (Color){80, 220, 100, 255} : hQ ? (Color){50, 180, 70, 255}
+                                                                          : (Color){30, 120, 50, 255};
+            DrawRectangleRounded({200.f, SH - 90, 220, 52}, 0.25f, 6, cB);
+            DrawText(!chooseQuick_L3 ? "BUBBLE  (selected)" : "BUBBLE SORT", 215, SH - 74, 17, WHITE);
+            DrawRectangleRounded({SW - 420.f, SH - 90, 220, 52}, 0.25f, 6, cQ);
+            DrawText(chooseQuick_L3 ? "QUICK  (selected)" : "QUICK SORT", SW - 410, SH - 74, 17, WHITE);
+        }
+        else if (gState == S_L3_PLAY)
+        {
+            DrawBG({14, 4, 4, 255}, {28, 6, 6, 255});
+            DrawHUD();
+            DC("LEVEL 3: STEALTH MODE", 56, 24, RED);
+            DrawMaze();
+            DrawPlayer((int)pPos.x, (int)pPos.y);
+            DrawGuard((int)gPos.x, (int)gPos.y);
+            int hx = MX + COLS * CELL + 8;
+            Panel(hx, MY, SW - hx - 8, 490, {22, 8, 8, 210}, {160, 40, 40, 255});
+            DrawText("Stealth HUD", hx + 10, MY + 8, 16, {255, 120, 80, 255});
+            DrawText("Noise Level:", hx + 10, MY + 34, 13, WHITE);
+            DrawRectangle(hx + 10, MY + 50, 180, 18, DARKGRAY);
+            Color nc = noiseLevel > 70 ? RED : noiseLevel > 40 ? ORANGE
+                                                               : GREEN;
+            DrawRectangle(hx + 10, MY + 50, (int)(180 * noiseLevel / 100.f), 18, nc);
+            DrawRectangleLines(hx + 10, MY + 50, 180, 18, WHITE);
+            char nb[16];
+            sprintf(nb, "%d%%", noiseLevel);
+            DrawText(nb, hx + 88, MY + 51, 13, WHITE);
+            DrawText("Noise array bars:", hx + 10, MY + 78, 13, LIGHTGRAY);
+            for (int i = 0; i < (int)noiseArr.size(); i++)
+            {
+                int bh = (int)(noiseArr[i] * 0.52f);
+                DrawRectangle(hx + 10 + i * 18, MY + 178 - bh, 14, bh, chooseQuick_L3 ? SKYBLUE : ORANGE);
+            }
+            DrawText(chooseQuick_L3 ? "QuickSort O(NlogN)" : "BubbleSort O(N^2)", hx + 10, MY + 188, 12, chooseQuick_L3 ? SKYBLUE : ORANGE);
+            char tbuf[32];
+            sprintf(tbuf, "Time: %.1fs", stealthTime);
+            DrawText(tbuf, hx + 10, MY + 208, 13, WHITE);
+            DrawText("Guard step delay:", hx + 10, MY + 228, 13, WHITE);
+            DrawText(chooseQuick_L3 ? "0.55s (slow)" : "0.28s (FAST!)", hx + 10, MY + 246, 13, chooseQuick_L3 ? GREEN : RED);
+            DrawText("[Arrow] Move", hx + 10, MY + 295, 13, LIGHTGRAY);
+            DrawText("Reach GREEN exit!", hx + 10, MY + 315, 13, GREEN);
+            DrawText("RED border = guard", hx + 10, MY + 350, 12, RED);
+        }
+        else if (gState == S_L3_CAUGHT)
+        {
+            DrawBG({30, 0, 0, 255}, {60, 0, 0, 255});
+            DrawHUD();
+            DC("CAUGHT BY THE GUARD!", SH / 2 - 90, 42, RED);
+            DC("The BFS algorithm computed the shortest path to you.", SH / 2 - 30, 19, WHITE);
+            if (!chooseQuick_L3)
+                DC("Bubble Sort O(N^2) generated too much noise!", SH / 2 + 10, 18, ORANGE);
+            else
+                DC("Even Quick Sort couldn't save you this time.", SH / 2 + 10, 18, ORANGE);
+            DC("Try Quick Sort: fewer operations = less noise = slower guard.", SH / 2 + 46, 17, LIGHTGRAY);
+            DC("[R] Retry Level 3      [M] Main Menu", SH / 2 + 108, 22, YELLOW);
+        }
+        else if (gState == S_L3_EXPLAIN)
+        {
+            DrawL3Explain();
+        }
+        else if (gState == S_L4_INTRO)
+        {
+            DrawL4Intro();
+        }
+        else if (gState == S_L4_PLAY)
+        {
+            DrawBG({4, 4, 22, 255}, {4, 12, 40, 255});
+            DrawHUD();
+            DC("LEVEL 4: TSP LASER GRID", 58, 26, GOLD);
+            for (int i = 0; i < TN; i++)
+                for (int j = i + 1; j < TN; j++)
+                {
+                    DrawLineEx(tspNode[i], tspNode[j], 1.5f, {50, 50, 110, 180});
+                    Vector2 mid = {(tspNode[i].x + tspNode[j].x) / 2, (tspNode[i].y + tspNode[j].y) / 2};
+                    char db[8];
+                    sprintf(db, "%d", dist[i][j]);
+                    DrawText(db, (int)mid.x - 6, (int)mid.y - 7, 13, {140, 140, 200, 200});
+                }
+            const char *nn[] = {"BASE", "A", "B", "C", "D"};
+            for (int i = 0; i < TN; i++)
+            {
+                DrawCircle((int)tspNode[i].x, (int)tspNode[i].y, 24, {22, 22, 70, 255});
+                DrawCircleLines((int)tspNode[i].x, (int)tspNode[i].y, 24, SKYBLUE);
+                DrawText(nn[i], (int)tspNode[i].x - 16, (int)tspNode[i].y - 8, 15, WHITE);
+            }
+            Panel(28, 83, 262, 490, {14, 14, 36, 220}, SKYBLUE);
+            DrawText("TSP Problem", 42, 96, 17, SKYBLUE);
+            DrawText("Visit all nodes once,", 42, 120, 14, WHITE);
+            DrawText("return to BASE.", 42, 138, 14, WHITE);
+            DrawText("Minimize total cost.", 42, 156, 14, WHITE);
+            DrawText("Brute Force O(N!)", 42, 188, 14, ORANGE);
+            DrawText("Held-Karp O(2^N*N^2)", 42, 208, 14, GREEN);
+            DrawText("NP-Hard problem!", 42, 228, 14, YELLOW);
+            DrawText("Distance Matrix:", 42, 262, 14, LIGHTGRAY);
+            for (int i = 0; i < TN; i++)
+            {
+                char row[64] = "";
+                int off = 0;
+                for (int j = 0; j < TN; j++)
+                    off += sprintf(row + off, "%3d ", dist[i][j]);
+                DrawText(row, 42, 280 + i * 20, 13, {160, 180, 200, 255});
+            }
+            DrawText("Click a button below.", 42, 398, 13, GOLD);
+            DrawText("Full explanation shown", 42, 416, 13, GOLD);
+            DrawText("after your choice!", 42, 434, 13, GOLD);
+            bool hBF = CheckCollisionPointRec(mouse, {120.f, 630, 240, 56});
+            bool hDP = CheckCollisionPointRec(mouse, {SW - 360.f, 630, 240, 56});
+            DrawRectangleRounded({120.f, 630, 240, 56}, 0.25f, 6, hBF ? (Color){255, 160, 60, 255} : (Color){170, 70, 10, 255});
+            DrawText("BRUTE FORCE (+80)", 136, 647, 18, WHITE);
+            DrawRectangleRounded({SW - 360.f, 630, 240, 56}, 0.25f, 6, hDP ? (Color){80, 255, 120, 255} : (Color){25, 140, 60, 255});
+            DrawText("HELD-KARP DP (+200)", SW - 350, 647, 18, WHITE);
+            DC("Select algorithm to bypass the laser grid", 598, 17, LIGHTGRAY);
+        }
+        else if (gState == S_L4_EXPLAIN)
+        {
+            DrawL4Explain();
+        }
+        else if (gState == S_WIN)
+        {
+            DrawBG({4, 18, 4, 255}, {6, 35, 6, 255});
+            DrawHUD();
+            float flash = (sinf(gTimer * 3.f) + 1.f) * 0.5f;
+            DC("MISSION ACCOMPLISHED!", (int)(95), 46, {(uint8_t)(180 + 75 * flash), 220, 0, 255});
+            DC("The vault is yours, Ghost. And now you know WHY.", 152, 22, WHITE);
+            Panel(80, 192, SW - 160, 432, {8, 22, 8, 218}, GOLD);
+            char fb[64];
+            sprintf(fb, "FINAL SCORE: %d", score);
+            DC(fb, 212, 32, GOLD);
+            DrawLine(90, 256, SW - 90, 256, {60, 100, 60, 255});
+            DrawText("Level", 100, 266, 16, LIGHTGRAY);
+            DrawText("Your Choice", 295, 266, 16, LIGHTGRAY);
+            DrawText("Key Lesson", 630, 266, 16, LIGHTGRAY);
+            DrawLine(90, 288, SW - 90, 288, {60, 100, 60, 255});
+            const char *rows[4][3] = {
+                {"1 - Knapsack", chooseDP_L1 ? "DP (+200)" : "Greedy (+80)", "DP finds optimal; Greedy may miss 0/1 combinations"},
+                {"2 - BFS Maze", "BFS pathfinding", "BFS guarantees shortest path in O(V+E)"},
+                {"3 - Stealth", chooseQuick_L3 ? "QuickSort (+bonus)" : "BubbleSort", "O(NlogN) generates less noise than O(N^2)"},
+                {"4 - TSP Laser", chooseDP_L4 ? "Held-Karp DP (+200)" : "Brute Force (+80)", "2^N*N^2 is VASTLY better than N! for large N"},
+            };
+            Color rc[4] = {SKYBLUE, GREEN, ORANGE, {180, 100, 255, 255}};
+            for (int i = 0; i < 4; i++)
+            {
+                DrawText(rows[i][0], 100, 303 + i * 56, 16, rc[i]);
+                DrawText(rows[i][1], 295, 303 + i * 56, 15, WHITE);
+                DrawText(rows[i][2], 630, 303 + i * 56, 13, LIGHTGRAY);
+            }
+            DrawLine(90, 530, SW - 90, 530, {60, 100, 60, 255});
+            DC("Algorithm complexity is not just theory.", 562, 16, {80, 220, 100, 255});
+            DC("Every choice has a cost. Every cost has a reason. Now you know both.", 585, 15, WHITE);
+            Panel(350, 620, SW - 700, 58, {10, 10, 10, 180}, {80, 80, 80, 255});
+            DC("[M] Return to Menu", 640, 19, {140, 140, 160, 255});
+        }
+
+        EndDrawing();
+    }
             
-          //BOOMIKA's PART
+    
 
     if (userTex.id)
         UnloadTexture(userTex);
