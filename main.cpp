@@ -50,7 +50,128 @@ bool chooseDP_L4 = true;
 //ANMOL's PARTT 
 
 //VASANT's Part
+// ──────────────────────────────────────────────
+//  KNAPSACK
+// ──────────────────────────────────────────────
+static const int KN = 5, KW = 8;
+static int kwt[KN] = {2, 3, 4, 5, 1};
+static int kval[KN] = {3, 4, 5, 6, 2};
+static const char *kname[KN] = {"Flashbang", "EMP", "MediKit", "Grapple", "Lockpick"};
+static int dpTable[KN + 1][KW + 1];
+static int dpAniI = 1, dpAniW = 0;
+static bool dpDone = false;
 
+static void initKS()
+{
+    memset(dpTable, 0, sizeof(dpTable));
+    dpAniI = 1;
+    dpAniW = 0;
+    dpDone = false;
+}
+static void stepDP()
+{
+    if (dpDone)
+        return;
+    int i = dpAniI, w = dpAniW;
+    dpTable[i][w] = (kwt[i - 1] <= w) ? max(dpTable[i - 1][w], kval[i - 1] + dpTable[i - 1][w - kwt[i - 1]]) : dpTable[i - 1][w];
+    if (++dpAniW > KW)
+    {
+        dpAniW = 0;
+        if (++dpAniI > KN)
+            dpDone = true;
+    }
+}
+static int greedyVal()
+{
+    vector<pair<float, int>> r;
+    for (int i = 0; i < KN; i++)
+        r.push_back({(float)kval[i] / kwt[i], i});
+    sort(r.rbegin(), r.rend());
+    int rem = KW, v = 0;
+    for (auto [ratio, i] : r)
+        if (kwt[i] <= rem)
+        {
+            rem -= kwt[i];
+            v += kval[i];
+        }
+    return v;
+}
+// added my part
+// ──────────────────────────────────────────────
+//  TSP
+// ──────────────────────────────────────────────
+static const int TN = 5;
+static int dist[TN][TN] = {{0, 10, 15, 20, 25}, {10, 0, 35, 25, 17}, {15, 35, 0, 30, 28}, {20, 25, 30, 0, 22}, {25, 17, 28, 22, 0}};
+static int tspMem[1 << TN][TN];
+static int tspResult = 0;
+static vector<int> tspTour;
+static Vector2 tspNode[TN] = {{560, 290}, {700, 190}, {810, 340}, {710, 470}, {510, 450}};
+
+static int tspDP(int mask, int pos)
+{
+    if (mask == (1 << TN) - 1)
+        return dist[pos][0];
+    if (tspMem[mask][pos] != -1)
+        return tspMem[mask][pos];
+    int ans = INT_MAX;
+    for (int i = 0; i < TN; i++)
+        if (!(mask & (1 << i)))
+            ans = min(ans, dist[pos][i] + tspDP(mask | (1 << i), i));
+    return tspMem[mask][pos] = ans;
+}
+static int tspBF()
+{
+    vector<int> nodes = {1, 2, 3, 4};
+    int mn = INT_MAX;
+    do
+    {
+        int cost = 0, k = 0;
+        for (int n : nodes)
+        {
+            cost += dist[k][n];
+            k = n;
+        }
+        cost += dist[k][0];
+        mn = min(mn, cost);
+    } while (next_permutation(nodes.begin(), nodes.end()));
+    return mn;
+}
+static void solveTSP()
+{
+    if (chooseDP_L4)
+    {
+        memset(tspMem, -1, sizeof(tspMem));
+        tspResult = tspDP(1, 0);
+        tspTour.clear();
+        tspTour.push_back(0);
+        int mask = 1, pos = 0;
+        while (mask != (1 << TN) - 1)
+        {
+            int best = -1, bc = INT_MAX;
+            for (int i = 0; i < TN; i++)
+                if (!(mask & (1 << i)))
+                {
+                    int c = dist[pos][i] + tspDP(mask | (1 << i), i);
+                    if (c < bc)
+                    {
+                        bc = c;
+                        best = i;
+                    }
+                }
+            mask |= (1 << best);
+            pos = best;
+            tspTour.push_back(best);
+        }
+        tspTour.push_back(0);
+        score += 200;
+    }
+    else
+    {
+        tspResult = tspBF();
+        tspTour = {0, 1, 2, 3, 4, 0};
+        score += 80;
+    }
+}
 // ──────────────────────────────────────────────
 //  DRAW HELPERS
 // ──────────────────────────────────────────────
