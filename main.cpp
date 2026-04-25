@@ -184,9 +184,9 @@ static void qsort2(vector<int> &a, int l, int r)
     }
 }
 
-// ──────────────────────────────────────────────
+
 //  KNAPSACK
-// ──────────────────────────────────────────────
+
 static const int KN = 5, KW = 8;
 static int kwt[KN] = {2, 3, 4, 5, 1};
 static int kval[KN] = {3, 4, 5, 6, 2};
@@ -308,9 +308,8 @@ static void solveTSP()
     }
 }
 
-// ──────────────────────────────────────────────
+
 //  LEVEL 5: FRACTIONAL KNAPSACK + HASHING
-// ──────────────────────────────────────────────
 
 // Fractional Knapsack items: Liquid Gold and Data Dust
 struct FracItem
@@ -444,9 +443,8 @@ static const float VAULT_TIME = 60.f;
 static bool l5HashPhase = false; // false=frac knapsack, true=hashing
 static float l5AniTimer = 0.f;
 
-// ──────────────────────────────────────────────
+
 //  LEVEL 6: DIJKSTRA GUARD + KMP
-// ──────────────────────────────────────────────
 
 // Dijkstra on a small weighted graph (escape route)
 // 8 nodes escape graph
@@ -1473,7 +1471,7 @@ int main()
         stTimer += dt;
         Vector2 mouse = GetMousePosition();
 
-        // ── UPDATE ──────────────────────
+        //Update
         switch (gState)
         {
 
